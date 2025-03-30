@@ -1,0 +1,9 @@
+{
+  "name": "sui_fantasy_sports",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": "bun"
+  }
+}

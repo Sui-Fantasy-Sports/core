@@ -1,0 +1,9 @@
+{
+    "name": "server",
+    "scripts": {
+        "dev": "bun --watch run server.ts"
+    },
+    "dependencies": {
+        "express": "^4.21.2"
+    }
+}

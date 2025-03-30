@@ -1,0 +1,6 @@
+{
+    "name": "contracts",
+    "scripts": {
+        "mc": "sui move build"
+    }
+}
