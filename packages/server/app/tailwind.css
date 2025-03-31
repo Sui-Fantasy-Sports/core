@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@plugin "tailwindcss-motion";
+
+@layer base {
+  :root {
+    --background: rgb(1, 1, 10);
+    --foreground: rgb(255, 255, 255);
+    --primary: oklch(0.707 0.165 254.624);
+    --secondary: oklch(0.627 0.265 303.9);
+    --border: oklch(0.3 0 0);
+    --card: hsl(240, 23%, 8%);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    text-decoration: none;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  input,
+  textarea {
+    @apply outline-none rounded focus:outline-none;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --text-xxs: 10px;
+}
+
+@utility text-rainbow {
+  @apply bg-rainbow text-transparent bg-clip-text;
+}
+
+@utility bg-rainbow {
+  width: full;
+  background: linear-gradient(
+    90deg,
+    rgba(63, 218, 216, 1) 0%,
+    rgba(79, 220, 74, 1) 25%,
+    rgba(255, 154, 0, 1) 50%,
+    rgba(251, 7, 217, 1) 75%,
+    rgba(95, 21, 242, 1) 100%
+  );
+}
