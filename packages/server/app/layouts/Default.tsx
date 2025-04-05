@@ -20,7 +20,7 @@ export default function () {
 
       <div
         className={cn(
-          "flex-1 overflow-y-scroll pb-[10vh] duration-300"
+          "flex-1 overflow-y-scroll pb-[10vh] duration-300 pt-14"
           // !privy.ready && "opacity-0 scale-50 saturate-0"
         )}
       >

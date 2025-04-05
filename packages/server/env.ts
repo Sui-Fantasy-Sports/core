@@ -1,5 +1,10 @@
 const envKeys = [
     "SERVER_SEED_PHRASE",
+    "SUI_NETWORK",
+    "SUI_FULLNODE_URL",
+    "PACKAGE_ID",
+    "MASTER_OBJECT_ID",
+    "PORT"
 ] as const;
 
 type ENV = Record<typeof envKeys[number], string>;

@@ -1,16 +1,24 @@
+// server/routes/contests.ts
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator"
+import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { getMatches, getContests, getContestDetails } from "../lib/matches";
 
-const app = new Hono()
+const contestsRoutes = new Hono()
+  .get("/matches", zValidator("json", z.object({ name: z.string().optional() })), async (ctx) => {
+    const { name } = ctx.req.valid("json");
+    const allMatches = getMatches();
+    const filteredMatches = name ? allMatches.filter(m => m.name.includes(name)) : allMatches;
+    return ctx.json(filteredMatches, 200);
+  })
+  .get("/contests", async (ctx) => {
+    const allContests = getContests();
+    return ctx.json(allContests, 200);
+  })
+  .get("/contests/:contestId", zValidator("param", z.object({ contestId: z.string() })), async (ctx) => {
+    const { contestId } = ctx.req.valid("param");
+    const contest = await getContestDetails(contestId);
+    return ctx.json(contest, 200);
+  });
 
-    .post("/new",
-        zValidator("json", z.object({
-            name: z.string()
-        }))
-        , async (ctx) => {
-            ctx.log(ctx.req.valid("json"))
-            return ctx.json({}, 200);
-        })
-
-export default app;
+export default contestsRoutes;

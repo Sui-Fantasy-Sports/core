@@ -1,8 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap'); 
 @import "tailwindcss";
 @plugin "tailwindcss-motion";
 
 @layer base {
   :root {
+    
     --background: rgb(1, 1, 10);
     --foreground: rgb(255, 255, 255);
     --primary: oklch(0.707 0.165 254.624);
@@ -24,6 +26,7 @@
     -ms-user-select: none;
     user-select: none;
     text-decoration: none;
+    font-family: Orbitron
   }
 
   button {
