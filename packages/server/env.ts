@@ -4,7 +4,9 @@ const envKeys = [
     "SUI_FULLNODE_URL",
     "PACKAGE_ID",
     "MASTER_OBJECT_ID",
-    "PORT"
+    "PORT",
+    "MONGODB_URI"
+
 ] as const;
 
 type ENV = Record<typeof envKeys[number], string>;
