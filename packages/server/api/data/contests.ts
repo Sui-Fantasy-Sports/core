@@ -8,18 +8,20 @@ export interface IContest extends Document {
   playerTiers: number[];
   startTime: number;
   matchEnded: boolean;
+  seriesId: string; // Add seriesId field
 }
 
-
-const contestSchema = new Schema<IContest>({
+const ContestSchema: Schema = new Schema({
   contestId: { type: String, required: true, unique: true },
   matchId: { type: String, required: true },
   matchName: { type: String, required: true },
-  playerNames: { type: [String], required: true },
-  playerTiers: { type: [Number], required: true },
+  playerNames: [{ type: String }],
+  playerTiers: [{ type: Number }],
   startTime: { type: Number, required: true },
   matchEnded: { type: Boolean, default: false },
-
+  seriesId: { type: String, required: true }, // Add seriesId field
 });
 
-export const Contest = mongoose.model<IContest>('Contest', contestSchema);
+const Contest = mongoose.models.Contest || mongoose.model<IContest>('Contest', ContestSchema);
+
+export { Contest };

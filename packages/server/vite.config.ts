@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import devServer from "@hono/vite-dev-server";
 import bunAdapter from "@hono/vite-dev-server/bun";
 import tailwindcss from "@tailwindcss/vite";
+import path from "path";
 
 const port = Bun.env["PORT"] ? Number(Bun.env["PORT"]) : 5173;
 export default defineConfig({

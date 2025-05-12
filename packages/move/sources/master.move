@@ -9,7 +9,13 @@ module sui_fantasy_sports::master {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::object::{Self, UID, ID};
+    use sui::display;
+    use sui::package;
 
+    // Define a Witness struct for the module
+    public struct MASTER has drop {}
+
+    // Existing error codes
     const EInvalidPlayerIndex: u64 = 100;
     const EInsufficientBalance: u64 = 104;
     const EMatchNotEnded: u64 = 1;
@@ -21,6 +27,11 @@ module sui_fantasy_sports::master {
     const EInvalidAmount: u64 = 108;
     const EPlayerNFTLimitExceeded: u64 = 109;
     const ETotalNFTLimitExceeded: u64 = 110;
+
+    // New error codes for sell function
+    const EPlayerIndexOutOfBounds: u64 = 101;
+    const ERedeemValuesLength: u64 = 102;
+    const ENotInOwnedNFTs: u64 = 103;
 
     const POOL_FEE_FRACTION: u64 = 20;
 
@@ -37,9 +48,10 @@ module sui_fantasy_sports::master {
 
     public struct PlayerNFT has key, store {
         id: UID,
+        idx: u64,
         name: String,
-        idx: u64, // Player index
-        amount: u64, // Redeemable amount in SUI (set during sell)
+        image_url: String,
+        amount: u64,
     }
 
     public struct PlayerPurchased has copy, store, drop {}
@@ -57,25 +69,44 @@ module sui_fantasy_sports::master {
         owner: address,
         player_names: vector<String>,
         player_tiers: vector<u64>,
-        player_nft_counts: vector<u64>, // Tracks the number of NFTs per player
-        total_nft_count: u64, // Tracks the total number of NFTs in the match
+        player_nft_counts: vector<u64>,
+        total_nft_count: u64,
         redeem_values: vector<u64>,
         pool: Balance<SUI>,
         fee_controller: Balance<SUI>,
         start_time: u64,
         match_name: String,
         match_ended: bool,
-        player_nft_ids: Table<ID, u64>, // Maps NFT ID to player index
-        owned_nfts: Table<address, vector<ID>>, // Maps user address to their owned NFT IDs
+        player_nft_ids: Table<ID, u64>,
+        owned_nfts: Table<address, vector<ID>>,
     }
 
-    fun init(ctx: &mut TxContext) {
+    fun init(_witness: MASTER, ctx: &mut TxContext) {
         let master = Master {
             id: object::new(ctx),
             owner: tx_context::sender(ctx),
             contests: vector::empty<ID>(),
             contestsCount: 0,
         };
+
+        // Set up Display for PlayerNFT, following the beaver_social example
+        let publisher = package::claim<MASTER>(_witness, ctx);
+        let keys = vector[
+            string::utf8(b"name"),
+            string::utf8(b"description"),
+            string::utf8(b"image_url"),
+        ];
+        let values = vector[
+            string::utf8(b"{name}"),
+            string::utf8(b"Player NFT for {name}"),
+            string::utf8(b"{image_url}"),
+        ];
+        let mut display = display::new_with_fields<PlayerNFT>(&publisher, keys, values, ctx);
+        display::update_version(&mut display);
+
+        transfer::public_transfer(display, tx_context::sender(ctx));
+        transfer::public_transfer(publisher, tx_context::sender(ctx));
+
         transfer::share_object(master);
     }
 
@@ -138,10 +169,8 @@ module sui_fantasy_sports::master {
         assert!(contest.match_ended == true, EMatchNotEnded);
         assert!(vector::length(&player_scores) == vector::length(&contest.player_names), EInvalidLength);
 
-        // Clear redeem_values to prevent appending
         contest.redeem_values = vector::empty();
 
-        // Take the fee from the pool
         let pool_before = balance::value(&contest.pool);
         let fees = balance::split(&mut contest.pool, pool_before / POOL_FEE_FRACTION);
         balance::join(&mut contest.fee_controller, fees);
@@ -165,7 +194,6 @@ module sui_fantasy_sports::master {
         };
         assert!(total_weighted_nfts > 0, EZeroScoreOrWeights);
 
-        // Calculate the redeem value per NFT for each player
         i = 0;
         while (i < vector::length(&player_scores)) {
             let player_score = *vector::borrow(&player_scores, i);
@@ -185,6 +213,7 @@ module sui_fantasy_sports::master {
         contest: &mut Contest,
         player_index: u64,
         amount: u64,
+        image_url: String,
         payment: Coin<SUI>,
         ctx: &mut TxContext,
     ) {
@@ -192,11 +221,9 @@ module sui_fantasy_sports::master {
         assert!(player_index < vector::length(&contest.player_names), EInvalidPlayerIndex);
         assert!(amount > 0, EInvalidAmount);
 
-        // Check per-player NFT limit
         let current_player_nfts = *vector::borrow(&contest.player_nft_counts, player_index);
         assert!(current_player_nfts + amount <= MAX_NFTS_PER_PLAYER, EPlayerNFTLimitExceeded);
 
-        // Check total NFT limit for the match
         assert!(contest.total_nft_count + amount <= MAX_NFTS_PER_MATCH, ETotalNFTLimitExceeded);
 
         let player_tier = *vector::borrow(&contest.player_tiers, player_index);
@@ -206,12 +233,10 @@ module sui_fantasy_sports::master {
         let sender = tx_context::sender(ctx);
         assert!(coin::value(&payment) >= total_cost, EInsufficientBalance);
 
-        // Initialize owned_nfts for the sender if not present
         if (!table::contains(&contest.owned_nfts, sender)) {
             table::add(&mut contest.owned_nfts, sender, vector::empty<ID>());
         };
 
-        // Take payment and add to the pool
         let mut payment_balance = coin::into_balance(payment);
         let payment_amount = balance::split(&mut payment_balance, total_cost);
         balance::join(&mut contest.pool, payment_amount);
@@ -222,12 +247,10 @@ module sui_fantasy_sports::master {
             balance::destroy_zero(payment_balance);
         };
 
-        // Update the player_nft_counts and total_nft_count
         let nft_count = vector::borrow_mut(&mut contest.player_nft_counts, player_index);
         *nft_count = *nft_count + amount;
         contest.total_nft_count = contest.total_nft_count + amount;
 
-        // Mint the specified number of NFTs
         let player_name = *vector::borrow(&contest.player_names, player_index);
         let owned = table::borrow_mut(&mut contest.owned_nfts, sender);
         let mut i = 0;
@@ -236,7 +259,8 @@ module sui_fantasy_sports::master {
                 id: object::new(ctx),
                 name: player_name,
                 idx: player_index,
-                amount: 0, // Initial amount is 0
+                image_url,
+                amount: 0,
             };
             let nft_id = object::id(&nft);
             table::add(&mut contest.player_nft_ids, nft_id, player_index);
@@ -253,16 +277,16 @@ module sui_fantasy_sports::master {
         nft: PlayerNFT,
         ctx: &mut TxContext,
     ) {
-        assert!(contest.match_ended == true, EMatchNotEnded);
+        assert!(contest.match_ended == true, EMatchNotEnded); // Code 1
         let nft_id = object::id(&nft);
-        assert!(table::contains(&contest.player_nft_ids, nft_id), EInvalidNFTId);
+        assert!(table::contains(&contest.player_nft_ids, nft_id), EInvalidNFTId); // Code 404
 
         let player_index = *table::borrow(&contest.player_nft_ids, nft_id);
-        assert!(player_index < vector::length(&contest.player_names), EInvalidPlayerIndex);
-        assert!(vector::length(&contest.redeem_values) > player_index, EInvalidPlayerIndex);
+        assert!(player_index < vector::length(&contest.player_names), EPlayerIndexOutOfBounds); // Code 101
+        assert!(vector::length(&contest.redeem_values) > player_index, ERedeemValuesLength); // Code 102
 
         let sender = tx_context::sender(ctx);
-        assert!(table::contains(&contest.owned_nfts, sender), ENotNFTOwner);
+        assert!(table::contains(&contest.owned_nfts, sender), ENotNFTOwner); // Code 106
         let owned = table::borrow_mut(&mut contest.owned_nfts, sender);
         let mut found = false;
         let mut i = 0;
@@ -275,31 +299,28 @@ module sui_fantasy_sports::master {
             };
             i = i + 1;
         };
-        assert!(found, ENotNFTOwner);
+        assert!(found, ENotInOwnedNFTs); // Code 103
 
-        // Update the NFT's amount with the redeem_value
         let redeem_value = *vector::borrow(&contest.redeem_values, player_index);
-        assert!(balance::value(&contest.pool) >= redeem_value, EInsufficientBalance);
+        assert!(balance::value(&contest.pool) >= redeem_value, EInsufficientBalance); // Code 104
         let mut nft = nft;
         nft.amount = redeem_value;
 
-        // Withdraw the amount as SUI from the pool
         let payout_balance = balance::split(&mut contest.pool, redeem_value);
         let payout = coin::from_balance(payout_balance, ctx);
         transfer::public_transfer(payout, sender);
 
-        // Decrement the player_nft_counts and total_nft_count
         let nft_count = vector::borrow_mut(&mut contest.player_nft_counts, player_index);
         *nft_count = *nft_count - 1;
         contest.total_nft_count = contest.total_nft_count - 1;
 
-        // Remove the NFT from player_nft_ids and destroy the NFT
         table::remove(&mut contest.player_nft_ids, nft_id);
-        let PlayerNFT { id, name: _, idx: _, amount: _ } = nft;
+        let PlayerNFT { id, name: _, idx: _, image_url: _, amount: _ } = nft;
         object::delete(id);
 
         event::emit(PlayerSold {});
     }
+
     public entry fun withdraw_fees(contest: &mut Contest, ctx: &mut TxContext) {
         assert!(tx_context::sender(ctx) == contest.owner, ENotOwner);
         let fee_amount = balance::value(&contest.fee_controller);
@@ -308,6 +329,7 @@ module sui_fantasy_sports::master {
             transfer::public_transfer(coin::from_balance(fees, ctx), contest.owner);
         };
     }
+
     public fun get_owner(contest: &Contest): address {
         contest.owner
     }
