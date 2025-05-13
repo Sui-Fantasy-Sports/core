@@ -83,7 +83,7 @@ export default function NftCard({
             options: { showContent: true },
           });
           if (!response.data) throw new Error(`No contest data for ID: ${contestId}`);
-          contest = response.data as ContestData;
+          contest = response.data as unknown as ContestData;
           contestCache[contestId] = contest;
         }
 
