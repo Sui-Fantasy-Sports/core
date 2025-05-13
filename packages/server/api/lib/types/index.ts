@@ -5,6 +5,7 @@ export interface MatchType {
   tiers: number[]; // Player tiers (e.g., [1, 2])
   startTime: number; // When the match starts (Unix timestamp in seconds)
   status?: 'upcoming' | 'live' | 'completed'; // Match status
+  seriesId: string; // Series ID (e.g., "Series1")
 }
 
 export interface ContestType {

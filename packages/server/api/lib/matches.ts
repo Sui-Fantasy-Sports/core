@@ -1,3 +1,4 @@
+// matches.ts
 import { connectDB } from './mongoose';
 import { Contest, IContest } from '../data/contests';
 import { Match, IMatch } from '../data/match';
@@ -47,7 +48,7 @@ async function createContestForMatch(match: MatchType, seriesId: string): Promis
     matchId: match.matchId,
     matchName: match.name,
     playerNames: match.players,
-    seriesId, // Add seriesId
+    seriesId,
   };
 
   try {
@@ -59,7 +60,7 @@ async function createContestForMatch(match: MatchType, seriesId: string): Promis
       playerTiers: match.tiers,
       startTime: match.startTime,
       matchEnded: false,
-      seriesId, // Save seriesId
+      seriesId,
     });
     console.log(`Contest saved to DB: ${contestId}`);
   } catch (error: any) {
@@ -150,18 +151,24 @@ export async function syncMatchesAndCreateContests(): Promise<void> {
             let playerRecord = await Player.findOne({ playerId, lastUpdated: { $gte: sevenDaysAgo } }).lean<IPlayer>().exec();
 
             if (playerRecord) {
-              console.log(`Using cached tier for ${playerName}: Tier ${playerRecord.tier}`);
+              console.log(`Using cached data for ${playerName}: Tier ${playerRecord.tier}`);
               playerTiers.push(playerRecord.tier);
             } else {
-              const { tier } = await fetchPlayerStatsAndTier(playerId);
+              const { tier, stats } = await fetchPlayerStatsAndTier(playerId);
               console.log(`${playerName} assigned Tier: ${tier}`);
 
               await Player.findOneAndUpdate(
                 { playerId },
-                { playerId, name: playerName, tier, lastUpdated: new Date() },
+                {
+                  playerId,
+                  name: playerName,
+                  stats,
+                  tier,
+                  lastUpdated: new Date(),
+                },
                 { upsert: true, new: true }
               );
-              console.log(`Saved tier for ${playerName} to DB`);
+              console.log(`Saved tier and stats for ${playerName} to DB`);
 
               playerTiers.push(tier);
             }
@@ -181,7 +188,7 @@ export async function syncMatchesAndCreateContests(): Promise<void> {
           players: allPlayers,
           tiers: playerTiers,
           startTime: Math.floor(new Date(m.dateTimeGMT).getTime() / 1000),
-          seriesId, // Add seriesId to match
+          seriesId: seriesId || 'unknown',
         };
 
         const existingMatch = await Match.findOne({ matchId: m.id }).lean<IMatch>().exec();
@@ -223,7 +230,11 @@ export async function syncMatchesAndCreateContests(): Promise<void> {
         const existingContest = await Contest.findOne({ matchId: m.id }).lean<IContest>().exec();
         if (!existingContest) {
           try {
-            await createContestForMatch(match, seriesId); // Pass seriesId
+            if (!seriesId) {
+              console.error(`Series ID is undefined for match ${match.matchId}, skipping contest creation.`);
+              continue;
+            }
+            await createContestForMatch(match, seriesId);
           } catch (error: any) {
             console.error(`Failed to create contest for match ${match.matchId}:`, error);
             console.error("Error stack:", error.stack);
@@ -268,7 +279,7 @@ export async function checkAndCompleteContests(): Promise<void> {
         matchName: contest.matchName,
         playerNames: contest.playerNames,
         matchEnded: contest.matchEnded,
-        seriesId: contest.seriesId, // Add seriesId
+        seriesId: contest.seriesId,
       };
 
       const contestObj: SuiObjectResponse = await suiClient.getObject({
@@ -425,11 +436,13 @@ export async function updateMatchStatuses(): Promise<void> {
   }
 }
 
-export async function getMatches(seriesId?: string): Promise<MatchType[]> {
+export async function getMatches(seriesId?: string, status?: string): Promise<MatchType[]> {
   await connectDB();
-  const query = seriesId ? { seriesId } : {};
+  const query: any = {};
+  if (seriesId) query.seriesId = seriesId;
+  if (status) query.status = status;
   const dbMatches = await Match.find(query).lean<IMatch[]>().exec();
-  console.log(`getMatches - seriesId: ${seriesId}, found matches:`, dbMatches.map(m => ({
+  console.log(`getMatches - seriesId: ${seriesId}, status: ${status}, found matches:`, dbMatches.map(m => ({
     matchId: m.matchId,
     name: m.name,
     status: m.status,
@@ -456,7 +469,7 @@ export async function getContests(seriesId?: string): Promise<ContestType[]> {
     matchName: c.matchName,
     playerNames: c.playerNames,
     matchEnded: c.matchEnded,
-    seriesId: c.seriesId, // Add seriesId to returned data
+    seriesId: c.seriesId,
   }));
 }
 
@@ -488,7 +501,14 @@ export async function getMatchData(contestId?: string): Promise<Team[]> {
     const matchSquad = await MatchSquad.findOne({ matchId: contest.matchId }).lean<IMatchSquad>().exec();
     if (matchSquad) {
       console.log(`Returning squad data for match: ${contest.matchId}`);
-      return matchSquad.teams as Team[];
+      const teams = matchSquad.teams as Team[];
+      return teams.map((team, teamIndex) => ({
+        ...team,
+        players: team.players.map((player, index) => ({
+          ...player,
+          tier: match.tiers[teamIndex * team.players.length + index] || 3,
+        })),
+      }));
     }
 
     if (!match.name) {
@@ -511,6 +531,7 @@ export async function getMatchData(contestId?: string): Promise<Team[]> {
           bowlingStyle: "Unknown",
           country: "Unknown",
           playerImg: "https://h.cricapi.com/img/icon512.png",
+          tier: match.tiers[index] || 3,
         })),
       },
       {
@@ -525,6 +546,7 @@ export async function getMatchData(contestId?: string): Promise<Team[]> {
           bowlingStyle: "Unknown",
           country: "Unknown",
           playerImg: "https://h.cricapi.com/img/icon512.png",
+          tier: match.tiers[match.team1Players.length + index] || 3,
         })),
       },
     ];
@@ -557,6 +579,7 @@ export async function getMatchData(contestId?: string): Promise<Team[]> {
           bowlingStyle: "Unknown",
           country: "Unknown",
           playerImg: "https://h.cricapi.com/img/icon512.png",
+          tier: match.tiers[index] || 3,
         })),
       },
       {
@@ -571,6 +594,7 @@ export async function getMatchData(contestId?: string): Promise<Team[]> {
           bowlingStyle: "Unknown",
           country: "Unknown",
           playerImg: "https://h.cricapi.com/img/icon512.png",
+          tier: match.tiers[match.team1Players.length + index] || 3,
         })),
       },
     ];

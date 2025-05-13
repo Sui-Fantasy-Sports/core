@@ -6,6 +6,7 @@ import { syncMatchesAndCreateContests, getMatchData, getMatches, getContests } f
 import { ensureEnv } from "./env";
 import cronJobs from "./api/middlewares/cron";
 import { suiClient } from "./api/sui/client";
+import { Player, IPlayer } from "./api/data/player"; // Import Player model
 
 ensureEnv();
 
@@ -52,16 +53,15 @@ app.get("/api/matches", async (c) => {
 });
 
 app.get("/api/contests", async (c) => {
-  
   try {
     const contests = await getContests();
-    
     return c.json([...contests]);
   } catch (error) {
     c.log('Error fetching contests:', error);
     return c.json({ error: 'Failed to fetch contests' }, 500);
   }
 });
+
 app.get("/api/contest/:contestId/transactions", async (c) => {
   const contestId = c.req.param("contestId").toLowerCase();
   try {
@@ -76,10 +76,36 @@ app.get("/api/contest/:contestId/transactions", async (c) => {
   }
 });
 
+// New endpoint to fetch player tiers
+app.post("/api/players/tiers", async (c) => {
+  try {
+    const { playerIds } = await c.req.json();
+    if (!Array.isArray(playerIds)) {
+      c.log("Invalid request: playerIds must be an array");
+      return c.json({ error: "playerIds must be an array" }, 400);
+    }
+
+    const players = await Player.find(
+      { playerId: { $in: playerIds } },
+      { playerId: 1, name: 1, tier: 1, lastUpdated: 1 }
+    ).lean<IPlayer[]>().exec();
+
+    const playerTiers = players.reduce((acc, player) => {
+      acc[player.playerId] = { tier: player.tier, name: player.name };
+      return acc;
+    }, {} as Record<string, { tier: number; name: string }>);
+
+    return c.json({ status: "success", data: playerTiers });
+  } catch (error) {
+    c.log("Error fetching player tiers:", error);
+    return c.json({ error: "Failed to fetch player tiers" }, 500);
+  }
+});
+
 app.get("*", (c) => c.html(html));
 
 // Sync on startup
-syncMatchesAndCreateContests().catch((error) => log('Sync failed:', error));
+syncMatchesAndCreateContests().catch((error) => log("Sync failed:", error));
 
 export default {
   ...app,

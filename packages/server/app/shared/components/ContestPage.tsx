@@ -1,3 +1,4 @@
+// ContestPage.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,8 +9,6 @@ import { useSuiClient, useCurrentAccount } from "@mysten/dapp-kit";
 import Navbar from "./Navbar";
 import { BackgroundCells } from "./background-ripple-effect";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
-import NftCard from "../components/NFTcard";
-import { fetchPlayerStatsAndTier } from "../../../api/lib/cricapi";
 
 interface Match {
   matchId: string;
@@ -58,12 +57,29 @@ interface TournamentCardProps {
 }
 
 const SUPPORTED_SERIES = [
-  { id: 'd5a498c8-7596-4b93-8ab0-e0efc3345312', name: 'IPL 2025' },
-  { id: '7124ea9a-d213-4d0e-8f21-5392fb244eb3', name: 'Germany Women tour of Greece, 2025' },
-  { id: 'd7f39636-282f-4b75-81da-1570aa9734e6', name: 'Japan T20I series' }
+  { id: "d5a498c8-7596-4b93-8ab0-e0efc3345312", name: "IPL 2025" },
+  { id: "7124ea9a-d213-4d0e-8f21-5392fb244eb3", name: "Germany Women tour of Greece, 2025" },
+  { id: "d7f39636-282f-4b75-81da-1570aa9734e6", name: "Japan T20I series" },
 ];
 
 const packageId = "0x85cd910e9f4dd3720bdbf654d371ad5e2a8b5fbe52064f1c21f4a03682ad1846";
+
+// Function to fetch player tiers from the backend
+async function fetchPlayerTiers(playerIds: string[]): Promise<Record<string, { tier: number; name: string }>> {
+  try {
+    const response = await fetch("http://localhost:5173/api/players/tiers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerIds }),
+    });
+    if (!response.ok) throw new Error("Failed to fetch player tiers");
+    const { data } = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching player tiers:", error);
+    return {};
+  }
+}
 
 const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
   const parseTeamNames = (name: string) => {
@@ -73,10 +89,8 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
   };
   const { teamAName, teamBName } = parseTeamNames(match.name || "Team A vs Team B");
 
-  // Match team names to teams array to get correct logos
   const findTeamByName = (teamName: string) => {
     if (!match.teams || match.teams.length < 2) return null;
-    // Try matching by teamName or shortname (case-insensitive)
     return match.teams.find(
       (team) =>
         team.teamName.toLowerCase() === teamName.toLowerCase() ||
@@ -90,11 +104,13 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
   const logoA = teamA?.img || "/placeholder-a.png";
   const logoB = teamB?.img || "/placeholder-b.png";
 
-  const timeRemaining = match.startTime > Math.floor(Date.now() / 1000)
-    ? `${Math.floor((match.startTime - Math.floor(Date.now() / 1000)) / 3600)}h ${Math.floor(((match.startTime - Math.floor(Date.now() / 1000)) % 3600) / 60)}min`
-    : "In Progress";
+  const timeRemaining =
+    match.startTime > Math.floor(Date.now() / 1000)
+      ? `${Math.floor((match.startTime - Math.floor(Date.now() / 1000)) / 3600)}h ${Math.floor(
+          ((match.startTime - Math.floor(Date.now() / 1000)) % 3600) / 60
+        )}min`
+      : "In Progress";
 
-  // Calculate total players and owned NFTs
   const totalPlayers = match.teams?.reduce((sum, team) => sum + team.players.length, 0) || 0;
   const totalOwnedNfts = Object.values(ownedNfts).flat().length;
 
@@ -112,7 +128,6 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
 
   return (
     <div className="w-full max-w-md rounded-xl bg-gradient-to-br from-black via-zinc-900 to-black p-4 border border-red-800 text-white shadow-lg text-xs flex flex-col transition-all transform hover:scale-105 hover:shadow-2xl hover:shadow-red-500/50 hover:ring-red-500/60">
-      {/* Top Row */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2 text-gray-300">
           <svg
@@ -145,7 +160,6 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
       </div>
 
       <div className="grid grid-cols-3 items-center text-xs sm:text-sm font-medium py-0.5 sm:py-3">
-        {/* Team A */}
         <div className="flex flex-col items-center sm:items-start gap-1 min-w-0">
           <img src={logoA} alt={`${teamAName} Logo`} className="h-8 w-8 sm:h-9 sm:w-9" />
           <span className="font-orbitron text-center sm:text-left leading-tight break-words max-w-[7rem] sm:max-w-[10rem] line-clamp-3">
@@ -153,12 +167,10 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
           </span>
         </div>
 
-        {/* VS centered */}
         <div className="text-center px-1">
           <span className="text-red-500 font-orbitron text-[10px] sm:text-xs tracking-wider">VS</span>
         </div>
 
-        {/* Team B */}
         <div className="flex flex-col items-center sm:items-end gap-1 min-w-0">
           <img src={logoB} alt={`${teamBName} Logo`} className="h-8 w-8 sm:h-9 sm:w-9 rounded-full" />
           <span className="font-orbitron text-center sm:text-right leading-tight break-words max-w-[7rem] sm:max-w-[10rem] line-clamp-3">
@@ -167,9 +179,7 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
         </div>
       </div>
 
-      {/* Push Tokens Left and Button to the bottom */}
       <div className="mt-auto space-y-4">
-        {/* Owned NFTs */}
         <div className="flex items-center justify-between text-xs w-full">
           <span className="text-red-500 w-1/3">Owned NFTs</span>
           <span className="text-gray-300 bg-black px-3 py-0.5 rounded border border-gray-600 w-1/4 text-center">
@@ -184,7 +194,6 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
           ></div>
         </div>
 
-        {/* Button */}
         {match.isCompleted ? (
           <button className="w-full h-9 bg-green-600 hover:bg-green-700 rounded-md text-white font-bold tracking-wide text-xs shadow-md">
             <Link to={contest ? `/players/${contest.contestId}` : "/players"}>SELL NFTs</Link>
@@ -205,18 +214,21 @@ export default function ContestPage() {
   const currentAccount = useCurrentAccount();
   const navigate = useNavigate();
 
-const { data: matches = [], error: matchesError } = useQuery({
+  const { data: matches = [], error: matchesError } = useQuery({
     queryKey: ["matches", selectedSeries],
     queryFn: async () => {
       const res = await fetch(`http://localhost:5173/api/matches?seriesId=${selectedSeries}`);
       if (!res.ok) throw new Error("Failed to fetch matches");
       const data = await res.json();
-      console.log("Fetched matches:", data.map((m: Match) => ({
-        matchId: m.matchId,
-        name: m.name,
-        status: m.status,
-        startTime: m.startTime,
-      })));
+      console.log(
+        "Fetched matches:",
+        data.map((m: Match) => ({
+          matchId: m.matchId,
+          name: m.name,
+          status: m.status,
+          startTime: m.startTime,
+        }))
+      );
       return Array.isArray(data) ? data : [];
     },
   });
@@ -227,12 +239,15 @@ const { data: matches = [], error: matchesError } = useQuery({
       const res = await fetch(`http://localhost:5173/api/contests?seriesId=${selectedSeries}`);
       if (!res.ok) throw new Error("Failed to fetch contests");
       const data = await res.json();
-      console.log("Fetched contests:", data.map((c: Contest) => ({
-        contestId: c.contestId,
-        matchId: c.matchId,
-        matchName: c.matchName,
-        matchEnded: c.matchEnded,
-      })));
+      console.log(
+        "Fetched contests:",
+        data.map((c: Contest) => ({
+          contestId: c.contestId,
+          matchId: c.matchId,
+          matchName: c.matchName,
+          matchEnded: c.matchEnded,
+        }))
+      );
       return Array.isArray(data) ? data : [];
     },
   });
@@ -251,23 +266,28 @@ const { data: matches = [], error: matchesError } = useQuery({
     try {
       const matchResponse = await fetch(`/api/match-data?contestId=${contestId}`);
       if (!matchResponse.ok) throw new Error("Failed to fetch match data");
-      const matchData: Team[] = await matchResponse.json();
+      let matchData: Team[] = await matchResponse.json();
       console.log(`Fetched match data for contest ${contestId}:`, matchData);
 
-      // Fetch tiers for each player
-      const updatedMatchData = await Promise.all(
-        matchData.map(async (team) => ({
-          ...team,
-          players: await Promise.all(
-            team.players.map(async (player) => {
-              const { tier } = await fetchPlayerStatsAndTier(player.id);
-              return { ...player, tier };
-            })
-          ),
-        }))
+      // Check for missing tiers and fetch as fallback
+      const hasMissingTiers = matchData.some((team) =>
+        team.players.some((player) => player.tier === undefined)
       );
-      console.log(`Updated match data with tiers for contest ${contestId}:`, updatedMatchData);
-      return updatedMatchData;
+      if (hasMissingTiers) {
+        console.log("Some players are missing tiers, fetching from /api/players/tiers");
+        const playerIds = matchData.flatMap((team) => team.players.map((p) => p.id));
+        const playerTiers = await fetchPlayerTiers(playerIds);
+        matchData = matchData.map((team) => ({
+          ...team,
+          players: team.players.map((player) => ({
+            ...player,
+            tier: playerTiers[player.id]?.tier || 3,
+          })),
+        }));
+      }
+
+      console.log(`Updated match data for contest ${contestId}:`, matchData);
+      return matchData;
     } catch (err) {
       console.error(`Error fetching match data for contest ${contestId}:`, err);
       setError("Failed to load match data.");
@@ -283,8 +303,6 @@ const { data: matches = [], error: matchesError } = useQuery({
 
     try {
       console.log("Fetching owned NFTs for address:", currentAccount.address);
-
-      // Fetch all PlayerNFT objects owned by the wallet
       const objects = await suiClient.getOwnedObjects({
         owner: currentAccount.address,
         filter: { StructType: `${packageId}::master::PlayerNFT` },
@@ -297,20 +315,18 @@ const { data: matches = [], error: matchesError } = useQuery({
         return {};
       }
 
-      // Fetch the Contest object to get the player_nft_ids table
       const contest = await suiClient.getObject({
         id: contestId,
         options: { showContent: true },
       });
-      if (!contest.data || !contest.data.content || !('fields' in contest.data.content)) {
+      if (!contest.data || !contest.data.content || !("fields" in contest.data.content)) {
         console.error("Contest data or fields missing for contestId:", contestId);
         return {};
       }
 
-      // Map NFTs to players
       const nftMap: { [playerIndex: number]: any[] } = {};
       objects.data.forEach((obj) => {
-        if (obj.data && obj.data.content && 'fields' in obj.data.content) {
+        if (obj.data && obj.data.content && "fields" in obj.data.content) {
           const playerIndex = (obj.data.content.fields as any)?.player_index;
           if (!nftMap[playerIndex]) nftMap[playerIndex] = [];
           nftMap[playerIndex].push(obj);
@@ -346,7 +362,6 @@ const { data: matches = [], error: matchesError } = useQuery({
         })
       );
 
-      // Filter out null values and update matches with team data
       const validMatches = newMatches.filter((m): m is Match => m !== null);
       setUpdatedMatches(validMatches);
     };
@@ -397,12 +412,10 @@ const { data: matches = [], error: matchesError } = useQuery({
   return (
     <div className="flex justify-center items-start bg-black text-white py-8 min-h-screen overflow-hidden">
       <Navbar />
-      {/* Background */}
       <div className="absolute inset-0 z-0">
         <BackgroundCells />
       </div>
 
-      {/* Content */}
       <div className="relative flex flex-col h-[700px] max-w-full justify-start items-start mt-[64px] backdrop-blur-[4px] w-[1400px] p-4 rounded-lg shadow-lg border border-red-900 text-white bg-white/2 z-10 overflow-hidden">
         {error ? (
           <div className="text-center py-10 text-red-500">{error}</div>
@@ -421,7 +434,11 @@ const { data: matches = [], error: matchesError } = useQuery({
                 ))}
               </select>
             </div>
-            <Tabs defaultValue="live" value={activeTab} onValueChange={(value) => setActiveTab(value as "live" | "completed" | "upcoming")}>
+            <Tabs
+              defaultValue="live"
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as "live" | "completed" | "upcoming")}
+            >
               <TabsList className="h-auto rounded-none border-border bg-transparent p-0">
                 <TabsTrigger
                   value="completed"

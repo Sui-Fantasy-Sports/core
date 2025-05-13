@@ -1,6 +1,6 @@
 import axios from 'axios';
-
-const API_KEY = '2301f876-9a6e-41ed-82aa-79cf6ce8e28';
+import env from '../../env'
+const API_KEY = env.CRIC_API_KEY
 const BASE_URL = 'https://api.cricapi.com/v1/';
 
 export const SUPPORTED_SERIES = [

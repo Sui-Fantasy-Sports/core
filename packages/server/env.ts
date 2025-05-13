@@ -5,7 +5,8 @@ const envKeys = [
     "PACKAGE_ID",
     "MASTER_OBJECT_ID",
     "PORT",
-    "MONGODB_URI"
+    "MONGODB_URI",
+    "CRIC_API_KEY",
 
 ] as const;
 
