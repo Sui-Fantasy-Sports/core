@@ -1,0 +1,9 @@
+[build]
+  base = "packages/server"
+  command = "bunx --bun vite build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

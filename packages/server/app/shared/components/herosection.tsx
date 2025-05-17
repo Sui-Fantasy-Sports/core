@@ -23,7 +23,7 @@ export default function LandingPage() {
       <div className="flex items-center justify-center min-h-screen bg-black p-2 sm:p-4 md:p-6 lg:p-8">
         <div
           className="relative w-full max-w-[90%] sm:max-w-[85%] md:max-w-5xl lg:max-w-6xl xl:max-w-7xl h-auto min-h-[400px] sm:min-h-[500px] md:h-[550px] lg:h-[600px] bg-cover bg-center rounded-lg border border-red-900 text-white"
-          style={{ backgroundImage: "url('/landingbg.png')" }}
+          style={{ backgroundImage: "url('/images/landingbg.png')" }}
         >
           <div className="absolute inset-0 p-3 sm:p-6 md:p-8 lg:p-10 rounded-lg shadow-lg  text-gray-400 backdrop-blur-[4px] bg-white/5">
             <div className="absolute bottom-3 sm:bottom-4 md:bottom-6 left-3 sm:left-4 md:left-6 flex flex-col items-start max-w-full">

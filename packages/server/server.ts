@@ -1,4 +1,3 @@
-// server/server.ts
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import api from "./api";
@@ -6,12 +5,9 @@ import { syncMatchesAndCreateContests, getMatchData, getMatches, getContests } f
 import { ensureEnv } from "./env";
 import cronJobs from "./api/middlewares/cron";
 import { suiClient } from "./api/sui/client";
-import { Player, IPlayer } from "./api/data/player"; // Import Player model
+import { Player, IPlayer } from "./api/data/player";
 
 ensureEnv();
-
-const htmlFile = Bun.file("./template.html");
-const html = await htmlFile.text();
 
 const app = new Hono();
 
@@ -26,12 +22,12 @@ app.use((ctx, next) => {
 app.use(cronJobs);
 app.route("/api", api);
 
-// Add endpoints
+// API Endpoints
 app.get("/api/match-data", async (c) => {
   try {
-    const contestId = c.req.query("contestId"); // Get contestId from query params
+    const contestId = c.req.query("contestId");
     console.log(`Fetching match data for contestId: ${contestId}`);
-    const data = await getMatchData(contestId); // Pass contestId to getMatchData
+    const data = await getMatchData(contestId);
     if (!data || data.length === 0) {
       return c.json({ error: "No match data available for this contest" }, 404);
     }
@@ -76,7 +72,6 @@ app.get("/api/contest/:contestId/transactions", async (c) => {
   }
 });
 
-// New endpoint to fetch player tiers
 app.post("/api/players/tiers", async (c) => {
   try {
     const { playerIds } = await c.req.json();
@@ -90,7 +85,7 @@ app.post("/api/players/tiers", async (c) => {
       { playerId: 1, name: 1, tier: 1, lastUpdated: 1 }
     ).lean<IPlayer[]>().exec();
 
-    const playerTiers = players.reduce((acc, player) => {
+    const playerTiers = players.reduce((acc: { [x: string]: { tier: any; name: any; }; }, player: { playerId: string | number; tier: any; name: any; }) => {
       acc[player.playerId] = { tier: player.tier, name: player.name };
       return acc;
     }, {} as Record<string, { tier: number; name: string }>);
@@ -102,9 +97,9 @@ app.post("/api/players/tiers", async (c) => {
   }
 });
 
-app.get("*", (c) => c.html(html));
+// Fallback for SPA routes to let Vite handle
 
-// Sync on startup
+
 syncMatchesAndCreateContests().catch((error) => log("Sync failed:", error));
 
 export default {
