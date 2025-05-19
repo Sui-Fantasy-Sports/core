@@ -26,4 +26,5 @@ const FantasyPointsSchema = new Schema<IFantasyPoints>({
 // Index for efficient querying by matchId and playerId
 FantasyPointsSchema.index({ matchId: 1, playerId: 1 }, { unique: true });
 
+
 export const FantasyPoints =mongoose.models.FantasyPoints|| model<IFantasyPoints>('FantasyPoints', FantasyPointsSchema);

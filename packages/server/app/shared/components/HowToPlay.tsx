@@ -6,7 +6,7 @@ const HowToPlay= () =>{
             <div
                 className="
                 min-h-screen bg-black bg-no-repeat bg-center flex flex-col items-start"
-                style={{ backgroundImage: "url('/stadium_black_bg.png')", backgroundSize: 'cover' }}
+                style={{ backgroundImage: "url('/images/stadium_black_bg.png')", backgroundSize: 'cover' }}
                 >
                 <h2 className="text-white text-center text-6xl w-full pt-28">
                     HOW TO PLAY
@@ -22,7 +22,7 @@ const HowToPlay= () =>{
             </div>
             
             <div
-            className="bg-[url('/futcricteam_processed.png')] 
+            className="bg-[url('/images/futcricteam_processed.png')] 
             min-h-screen bg-black bg-no-repeat bg-center flex items-center justify-end"
             style={{ backgroundSize: 'cover' }}>
                 <div className="text-white text-right mr-40 max-w-[600px]">
@@ -34,7 +34,7 @@ const HowToPlay= () =>{
                 </div>
             </div>
 
-            <div className="bg-[url('/nft_processed.png')] 
+            <div className="bg-[url('/images/nft_processed.png')] 
             min-h-screen bg-black bg-no-repeat bg-center flex items-center justify-start"
             style={{ backgroundSize: 'cover' }}>
                 <div className="text-white text-left ml-40 max-w-[600px]">                 
