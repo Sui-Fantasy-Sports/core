@@ -1,4 +1,4 @@
-import { Schema, model } from 'mongoose';
+import mongoose, { Schema, model } from 'mongoose';
 
 // Define IFantasyPoints as a plain interface (not extending Document)
 export interface IFantasyPoints {
@@ -26,4 +26,4 @@ const FantasyPointsSchema = new Schema<IFantasyPoints>({
 // Index for efficient querying by matchId and playerId
 FantasyPointsSchema.index({ matchId: 1, playerId: 1 }, { unique: true });
 
-export const FantasyPoints = model<IFantasyPoints>('FantasyPoints', FantasyPointsSchema);
+export const FantasyPoints =mongoose.models.FantasyPoints|| model<IFantasyPoints>('FantasyPoints', FantasyPointsSchema);

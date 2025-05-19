@@ -10,7 +10,7 @@ import { Player, IPlayer } from "./api/data/player"; // Import Player model
 
 ensureEnv();
 
-const htmlFile = Bun.file("./template.html");
+const htmlFile = Bun.file("./index.html");
 const html = await htmlFile.text();
 
 const app = new Hono();
