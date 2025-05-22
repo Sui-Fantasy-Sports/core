@@ -60,7 +60,7 @@ const BackgroundCellCore = () => {
           <Pattern cellClassName="border-[#8b0000] relative z-[100]" />
         </div>
         {/* Base grid pattern */}
-        <Pattern className="opacity-[1]" cellClassName="border-[#8b0000]" />
+        <Pattern className="opacity-[1]" cellClassName="border-[rgb(139,0,0,0.6)]" />
       </div>
     </div>
   );
@@ -117,7 +117,7 @@ const Pattern = ({ className, cellClassName }: PatternProps) => {
                   whileHover={{ opacity: [0, 1, 0.5] }}
                   transition={{ duration: 0.5, ease: "backOut" }}
                   animate={controls}
-                  className="bg-[rgba(139,0,0,0.1)] h-12 w-12"
+                  className="bg-[rgba(139,0,0,0.8)] h-12 w-12"
                 />
               </div>
             );

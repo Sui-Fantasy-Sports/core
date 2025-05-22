@@ -397,27 +397,33 @@ export async function updateMatchStatuses(): Promise<void> {
       const matchId = apiMatch.id;
       let newStatus: 'completed' | 'live' | 'upcoming';
 
-      const matchInfo = await fetchMatchInfo(matchId);
-      if (matchInfo.status === 'success' && matchInfo.data?.status) {
-        if (apiMatch.matchEnded || matchInfo.data.status?.includes('won') || matchInfo.data.status?.includes('No result')) {
-          newStatus = 'completed';
-        } else if (matchInfo.data.status?.includes('In Progress') || matchInfo.data.status?.includes('Innings Break')) {
-          newStatus = 'live';
-        } else {
-          newStatus = 'upcoming';
-        }
-      } else {
-        console.warn(`Failed to fetch detailed info for match ${matchId}, falling back to apiMatch data:`, matchInfo.info);
-        if (apiMatch.matchEnded || apiMatch.status?.includes('won') || apiMatch.status?.includes('No result')) {
-          newStatus = 'completed';
-        } else if (apiMatch.matchStarted) {
-          newStatus = 'live';
-        } else {
-          newStatus = 'upcoming';
-        }
-      }
-
       try {
+        const matchInfo = await fetchMatchInfo(matchId);
+        if (matchInfo.status === 'success' && matchInfo.data?.status) {
+          if (apiMatch.matchEnded || matchInfo.data.status?.toLowerCase().includes('won') || matchInfo.data.status?.toLowerCase().includes('no result')) {
+            newStatus = 'completed';
+          } else if (
+            apiMatch.matchStarted || // Primary indicator
+            matchInfo.data.status?.toLowerCase().includes('in progress') ||
+            matchInfo.data.status?.toLowerCase().includes('innings break') ||
+            matchInfo.data.status?.toLowerCase().includes('opt to') || // Handles "Delhi Capitals opt to bowl"
+            (matchInfo.data.score && matchInfo.data.score.length > 0) // Score presence indicates live match
+          ) {
+            newStatus = 'live';
+          } else {
+            newStatus = 'upcoming';
+          }
+        } else {
+          console.warn(`Failed to fetch detailed info for match ${matchId}, falling back to apiMatch data:`, matchInfo.info);
+          if (apiMatch.matchEnded || apiMatch.status?.toLowerCase().includes('won') || apiMatch.status?.toLowerCase().includes('no result')) {
+            newStatus = 'completed';
+          } else if (apiMatch.matchStarted || apiMatch.status?.toLowerCase().includes('opt to')) {
+            newStatus = 'live';
+          } else {
+            newStatus = 'upcoming';
+          }
+        }
+
         const existingMatch = await Match.findOne({ matchId }).lean<IMatch>().exec();
         if (existingMatch) {
           await Match.findOneAndUpdate(

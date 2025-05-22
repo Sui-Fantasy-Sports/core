@@ -1,21 +1,14 @@
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import env from "../../env";
-dotenv.config();
 
-const MONGODB_URI = "mongodb+srv://fantasysports:fantasy123@fantasy-sports.47cp4vx.mongodb.net/cricket_db?retryWrites=true&w=majority";
-export const connectDB = async () => {
+export async function connectDB(): Promise<void> {
   try {
-    await mongoose.connect(MONGODB_URI);
-    console.log('MongoDB connected successfully');
+    const uri = 'mongodb+srv://fantasysports:fantasy123@fantasy-sports.47cp4vx.mongodb.net/cricket_db?retryWrites=true&w=majority';
+    await mongoose.connect(uri, {
+      dbName: 'cricket_db',
+    });
+    console.log('Connected to MongoDB: cricket_db');
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.error('Failed to connect to MongoDB:', error);
+    throw error;
   }
-};
-
-export const disconnectDB = async () => {
-  await mongoose.disconnect();
-  console.log('MongoDB disconnected');
-
-};
+}

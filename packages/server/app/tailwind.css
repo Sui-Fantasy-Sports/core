@@ -260,3 +260,130 @@
     @apply bg-background text-foreground;
   }
 }
+.shine {
+  font-size: 2em;
+  font-weight: 900;
+  color: rgba(139, 0, 0, 0.8);
+  background: #222 -webkit-gradient(
+      linear,
+      left top,
+      right top,
+      from(#222),
+      to(#222),
+      color-stop(0.9, #fff)
+    ) 0 0 no-repeat;
+  background-image: -webkit-linear-gradient(
+    -40deg,
+    transparent 0%,
+    transparent 40%,
+    #fff 70%,
+    transparent 60%,
+    transparent 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-background-size: 50px;
+  -webkit-animation: zezzz;
+  -webkit-animation-duration: 5s;
+  -webkit-animation-iteration-count: infinite;
+}
+@-webkit-keyframes zezzz {
+  0%,
+  10% {
+    background-position: -200px;
+  }
+  20% {
+    background-position: top left;
+  }
+  100% {
+    background-position: 700px;
+  }
+}
+.glow-border {
+  position: relative;
+  display: inline-block;
+  padding: 12px 24px;
+  color: #8b0000;
+  background: white;
+  border: none;
+  cursor: pointer;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+.glow-border {
+  position: relative;
+  display: inline-block;
+  padding: 12px 24px;
+  color: #8b0000;
+  background-color: #ffffff;
+  border: none;
+  cursor: pointer;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+/* Animated gradient border */
+.glow-border::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  background: linear-gradient(270deg, #ffcc00, #b22222, #8b0000, #ffcc00, #8b0000, #b22222, #ffcc00);
+  background-size: 600% 600%;
+  animation: border-glow 6s ease infinite;
+  z-index: -2;
+  border-radius: 10px;
+}
+
+/* Inner mask to reveal only the border */
+.glow-border::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  background: white;
+  bottom: 3px;
+  z-index: -1;
+  border-radius: 6px;
+}
+
+@keyframes border-glow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+/* Custom Horizontal Scrollbar */
+
+/* Firefox */
+.custom-horizontal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* Webkit (Chrome, Edge, Safari) */
+.custom-horizontal-scrollbar::-webkit-scrollbar {
+  height: 8px; /* Height of the horizontal scrollbar */
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Transparent background for the track */
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3); /* Semi-transparent white thumb */
+  border-radius: 4px; /* Rounded edges for the thumb */
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5); /* Slightly more opaque on hover */
+}

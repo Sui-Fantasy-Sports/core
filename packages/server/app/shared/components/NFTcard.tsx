@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useSignAndExecuteTransaction, useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { Flag, User, Target } from "lucide-react";
+import { Flag, User, Target, Users } from "lucide-react";
 
-// Simple utility to add a delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 interface Player {
@@ -15,7 +14,8 @@ interface Player {
   bowlingStyle?: string;
   country: string;
   playerImg: string;
-  tier: number;
+  tier?: number;
+  teamName?: string;
 }
 
 interface Nft {
@@ -37,23 +37,27 @@ interface NftCardProps {
   player: Player;
   teamName: string;
   contestId: string;
+  playerId: string;
   playerIndex: number;
-  playerName: string;
   packageId: string;
   isMatchCompleted: boolean;
-  ownedNfts: Nft[];
   tier: number;
-  onQuantityChange: (count: number) => void;
+  playerName: string;
+  ownedNfts?: Nft[];
+  onQuantityChange?: (playerId: string, newQuantity: number) => void;
 }
 
 export default function NftCard({
   player,
   teamName,
   contestId,
+  playerId,
   playerIndex,
   packageId,
   isMatchCompleted,
   tier,
+  playerName,
+  onQuantityChange,
 }: NftCardProps) {
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
@@ -64,20 +68,23 @@ export default function NftCard({
 
   const BASE_COST = 300; // MIST
 
-  // Cache within component to avoid leaks
-  const [contestCache] = useState<{ [contestId: string]: ContestData }>({});
-  const [playerNftIdsCache] = useState<{ [tableId: string]: any }>({});
+  console.log("Wallet address in NftCard.tsx:", currentAccount?.address);
+  console.log("Player index in of player in NftCard.tsx:", playerIndex);
+  console.log("Player name in NftCard.tsx:", player.name);
+  console.log("Number of tokens in NftCard.tsx:", nftCount);
+
+  const contestCache: { [contestId: string]: ContestData } = {};
+  const playerNftIdsCache: { [tableId: string]: any } = {};
 
   useEffect(() => {
-    if (!currentAccount) return;
-
+    console.log("Current account in NftCard:", currentAccount);
+    console.log("Fetching data for contestId:", contestId, "playerId:", playerId);
     const fetchPlayerData = async () => {
       setIsLoading(true);
       try {
-        // Fetch contest data (cached)
         let contest = contestCache[contestId];
         if (!contest) {
-          await delay(200 * playerIndex);
+          await delay(200);
           const response = await suiClient.getObject({
             id: contestId,
             options: { showContent: true },
@@ -87,65 +94,57 @@ export default function NftCard({
           contestCache[contestId] = contest;
         }
 
-        if (contest.content?.fields?.player_nft_counts) {
-          const count = contest.content.fields.player_nft_counts[playerIndex] ?? 0;
-          setNftCount(Number(count));
-        } else {
-          console.warn("Contest content or player_nft_counts missing:", contest);
-        }
-
         const nfts = await fetchOwnedNfts();
+        console.log("Fetched owned NFTs:", nfts);
         setOwnedNfts(nfts);
+        const userOwnedCount = nfts.length;
+        setNftCount(userOwnedCount);
+        onQuantityChange?.(playerId, userOwnedCount);
       } catch (error) {
-        console.error("Error fetching player запускающий data:", error);
+        console.error("Error fetching player data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchPlayerData();
-  }, [currentAccount, contestId, playerIndex, suiClient, contestCache, playerNftIdsCache]);
+  }, [currentAccount, contestId, playerId, suiClient]);
 
   const fetchOwnedNfts = async (): Promise<Nft[]> => {
     if (!currentAccount) {
       console.log("No current account, skipping fetchOwnedNfts");
       return [];
     }
-
     try {
-      await delay(200 * playerIndex);
+      console.log("Fetching owned NFTs for address:", currentAccount.address);
+      await delay(200);
       const objects = await suiClient.getOwnedObjects({
         owner: currentAccount.address,
         filter: { StructType: `${packageId}::master::PlayerNFT` },
         options: { showContent: true, showType: true },
       });
 
-      if (!objects.data?.length) {
+      if (!objects.data || objects.data.length === 0) {
         console.log("No PlayerNFT objects found for this wallet.");
         return [];
       }
 
       let contest = contestCache[contestId];
       if (!contest) {
-        await delay(200 * playerIndex);
+        await delay(200);
         const response = await suiClient.getObject({
           id: contestId,
           options: { showContent: true },
         });
         if (!response.data) throw new Error(`No contest data for ID: ${contestId}`);
-        contest = response.data as ContestData;
+        contest = response.data as unknown as ContestData;
         contestCache[contestId] = contest;
       }
 
-      const playerNftIdsTableId = contest.content?.fields?.player_nft_ids?.fields?.id?.id;
-      if (!playerNftIdsTableId) {
-        console.error("player_nft_ids table ID missing:", contest);
-        return [];
-      }
-
+      const playerNftIdsTableId = contest.content.fields.player_nft_ids.fields.id.id;
       let playerNftIds = playerNftIdsCache[playerNftIdsTableId];
       if (!playerNftIds) {
-        await delay(200 * playerIndex);
+        await delay(200);
         playerNftIds = await suiClient.getDynamicFields({
           parentId: playerNftIdsTableId,
         });
@@ -159,23 +158,26 @@ export default function NftCard({
           id: entry.objectId,
           options: { showContent: true },
         });
-        const nftId = (entry.name as any)?.value;
+        const nftId = (entry.name as any).value;
         const playerIdx = Number((field.data?.content as any)?.fields?.value ?? -1);
-        if (nftId && playerIdx >= 0) {
+        if (nftId) {
           nftIdToPlayerIndex[nftId] = playerIdx;
         }
       }
 
-      return objects.data
+      const filteredNfts = objects.data
         .filter((obj) => {
           const nftId = obj.data?.objectId;
+          if (!nftId) return false;
           const playerIdx = nftIdToPlayerIndex[nftId] ?? -1;
           return playerIdx === playerIndex;
         })
         .map((obj) => ({
-          id: obj.data?.objectId!,
+          id: obj.data!.objectId,
           redeemValue: Number((obj.data?.content as any)?.fields?.redeem_value ?? 0),
         }));
+
+      return filteredNfts;
     } catch (error) {
       console.error("Failed to fetch owned NFTs:", error);
       return [];
@@ -197,7 +199,6 @@ export default function NftCard({
         id: contestId,
         options: { showType: true, showContent: true },
       });
-
       if (!contestObj.data || contestObj.data.type !== `${packageId}::master::Contest`) {
         throw new Error(`Invalid contest object at ${contestId}`);
       }
@@ -209,7 +210,6 @@ export default function NftCard({
 
       const txb = new Transaction();
       const [coin] = txb.splitCoins(txb.gas, [totalCostMist]);
-
       txb.moveCall({
         target: `${packageId}::master::buy`,
         arguments: [
@@ -232,7 +232,9 @@ export default function NftCard({
             alert("NFT purchased successfully!");
             const updatedNfts = await fetchOwnedNfts();
             setOwnedNfts(updatedNfts);
-            setNftCount((prev) => prev + 1);
+            const newCount = updatedNfts.length;
+            setNftCount(newCount);
+            onQuantityChange?.(playerId, newCount);
           },
           onError: (error) => {
             console.error("Buy failed:", error);
@@ -257,10 +259,21 @@ export default function NftCard({
 
     try {
       setIsLoading(true);
+      const contestObj = await suiClient.getObject({
+        id: contestId,
+        options: { showType: true, showContent: true },
+      });
+      if (!contestObj.data || contestObj.data.type !== `${packageId}::master::Contest`) {
+        throw new Error(`Invalid contest object at ${contestId}`);
+      }
+
       const txb = new Transaction();
       txb.moveCall({
         target: `${packageId}::master::sell`,
-        arguments: [txb.object(contestId), txb.object(nftId)],
+        arguments: [
+          txb.object(contestId),
+          txb.object(nftId),
+        ],
       });
 
       signAndExecuteTransaction(
@@ -274,7 +287,9 @@ export default function NftCard({
             alert("NFT sold successfully!");
             const updatedNfts = await fetchOwnedNfts();
             setOwnedNfts(updatedNfts);
-            setNftCount((prev) => prev - 1);
+            const newCount = updatedNfts.length;
+            setNftCount(newCount);
+            onQuantityChange?.(playerId, newCount);
           },
           onError: (error) => {
             console.error("Sell failed:", error);
@@ -284,61 +299,69 @@ export default function NftCard({
         }
       );
     } catch (error) {
-      console.error("Sell error:", error);
-      alert("Failed to prepare sell transaction.");
+      console.error("Pre-execution error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      alert(`Failed to prepare transaction: ${errorMessage}`);
       setIsLoading(false);
     }
   };
 
-  const borderClass = tier === 1 ? "border-yellow-600" : tier === 2 ? "border-blue-600" : "border-gray-600";
+  const borderClass = "border-gray-600";
 
   return (
     <div
-      className={`relative group w-56 h-[420px] rounded-2xl bg-[#111] border ${borderClass} p-4 text-white flex flex-col justify-between 
-        transition-transform duration-200 shadow-inner hover:-translate-y-1 hover:border-red-800`}
+      className={`relative group w-full max-w-[200px] aspect-[8/15] rounded-2xl bg-[#111] border ${borderClass} p-2 sm:p-3 lg:p-4 text-white 
+      flex flex-col justify-between transition-transform duration-200 shadow-inner hover:-translate-y-1 hover:border-red-800 mx-auto
+      min-h-[360px] sm:min-h-[400px] lg:min-h-[450px]`}
     >
-      {/* Player Image with Fixed Height */}
-      <div className="relative h-[144px] rounded-xl overflow-hidden">
-        <img src={player.playerImg} alt={player.name} className="w-full h-full object-cover" />
-        <div className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-3 py-1 rounded-full font-normal shadow-sm">
+      <div className="relative h-1/3 rounded-xl overflow-hidden">
+        <img
+          src={player.playerImg}
+          alt={player.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute break-words max-w-[88px] top-1 sm:top-2 right-1 sm:right-2 bg-gray-800 text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-0.5 rounded-full font-normal shadow-sm">
           {player.role}
         </div>
       </div>
 
-      {/* Quantity badge */}
       {nftCount > 0 && (
-        <div className="absolute top-2 left-2 bg-gray-800 text-xs text-white px-2 py-0.5 rounded-full font-bold shadow">
-          {nftCount}x
+        <div className="absolute top-2 sm:top-3 left-2 sm:left-3 flex items-center bg-[#8b0000] text-white text-[10px] px-2 sm:px-3 py-0.5 sm:py-1 rounded-br-xl font-semibold shadow-lg ">
+          <Users size={12} className="mr-1" />
+          {nftCount} NFTs
         </div>
       )}
 
-      {/* Name & Meta */}
-      <div className="mt-3 px-1">
-        <div className="text-sm font-semibold mb-2 w-full break-words line-clamp-2">{player.name}</div>
-        <div className="flex justify-between text-sm items-center mb-1">
-          <div className="flex items-center text-xs gap-1 text-gray-500">
-            <Flag size={14} /> {player.country}
+      <div className="mt-2 sm:mt-3 px-1">
+        <div className="text-xs sm:text-sm font-semibold mb-1 sm:mb-2 w-full break-words line-clamp-2">
+          {player.name}
+        </div>
+        <div className="flex justify-between text-[10px] sm:text-xs items-center mb-1">
+          <div className="flex items-center text-gray-500 gap-1">
+            <Flag size={12} /> {player.country}
           </div>
-          <div className="text-yellow-400 font-semibold">{BASE_COST} SUI</div>
+          <div className="text-yellow-400 font-semibold">{BASE_COST} MIST</div>
         </div>
-        <div className="text-right text-xs text-gray-500 uppercase tracking-widest">{teamName}</div>
-      </div>
-
-      {/* Skills */}
-      <div className="mt-4 grid grid-cols-2 gap-2 text-[10px] text-gray-400">
-        <div className="flex items-center gap-2 p-2 bg-[#181818] rounded-md">
-          <User size={14} /> {player.battingStyle}
-        </div>
-        <div className="flex items-center gap-2 p-2 bg-[#181818] rounded-md">
-          <Target size={14} /> {player.bowlingStyle || "N/A"}
+        <div className="text-right text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest">
+          {teamName}
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="mt-2 sm:mt-3 grid grid-cols-2 gap-1 sm:gap-2 text-[10px] sm:text-[10px] text-gray-400">
+        <div className="flex items-center gap-1 sm:gap-2 p-1 sm:p-2 bg-[#181818] rounded-md">
+          <User size={12} />
+          {player.battingStyle}
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2 p-1 sm:p-2 bg-[#181818] rounded-md">
+          <Target size={12} />
+          {player.bowlingStyle || "N/A"}
+        </div>
+      </div>
+
+      <div className="mt-2 sm:mt-3 flex flex-col gap-2">
         <button
           onClick={handleBuy}
-          className="w-full rounded-md bg-[#8b0000] py-1 text-sm hover:bg-red-600 hover:text-white transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-md bg-[#8b0000] py-1 sm:py-1.5 text-xs sm:text-sm hover:bg-red-600 hover:text-white transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isMatchCompleted || isPending || isLoading}
         >
           {isLoading ? "Processing..." : "Buy"}
@@ -347,7 +370,7 @@ export default function NftCard({
           <button
             key={nft.id}
             onClick={() => handleSell(nft.id)}
-            className="w-full rounded-md bg-gray-600 py-1 text-sm hover:bg-gray-500 hover:text-white transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-md bg-gray-600 py-1 sm:py-1.5 text-xs sm:text-sm hover:bg-gray-500 hover:text-white transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isPending || isLoading}
           >
             Sell NFT #{nft.id.slice(0, 6)}

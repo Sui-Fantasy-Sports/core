@@ -1,4 +1,3 @@
-// ContestPage.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -82,6 +81,29 @@ async function fetchPlayerTiers(playerIds: string[]): Promise<Record<string, { t
 }
 
 const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
+  const [liveScore, setLiveScore] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (match.status === "live") {
+      const fetchScore = async () => {
+        try {
+          const res = await fetch(`http://localhost:5173/api/match-info?matchId=${match.matchId}`);
+          const data = await res.json();
+          if (data.status === "success" && data.data?.score?.length > 0) {
+            const score = data.data.score[0];
+            setLiveScore(`${score.r}/${score.w} (${score.o} overs)`);
+          } else {
+            setLiveScore("Live");
+          }
+        } catch (error) {
+          console.error(`Failed to fetch live score for match ${match.matchId}:`, error);
+          setLiveScore("Live");
+        }
+      };
+      fetchScore();
+    }
+  }, [match.matchId, match.status]);
+
   const parseTeamNames = (name: string) => {
     const [teamsPart] = name.split(",");
     const [teamA, teamB] = teamsPart.split(" vs ").map((team) => team.trim());
@@ -105,11 +127,13 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
   const logoB = teamB?.img || "/placeholder-b.png";
 
   const timeRemaining =
-    match.startTime > Math.floor(Date.now() / 1000)
+    match.status === "live"
+      ? liveScore || "Live"
+      : match.startTime > Math.floor(Date.now() / 1000)
       ? `${Math.floor((match.startTime - Math.floor(Date.now() / 1000)) / 3600)}h ${Math.floor(
           ((match.startTime - Math.floor(Date.now() / 1000)) % 3600) / 60
         )}min`
-      : "In Progress";
+      : "Upcoming";
 
   const totalPlayers = match.teams?.reduce((sum, team) => sum + team.players.length, 0) || 0;
   const totalOwnedNfts = Object.values(ownedNfts).flat().length;
@@ -123,86 +147,99 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
     logoB,
     totalPlayers,
     totalOwnedNfts,
+    status: match.status,
+    timeRemaining,
     teams: match.teams,
   });
 
   return (
-    <div className="w-full max-w-md rounded-xl bg-gradient-to-br from-black via-zinc-900 to-black p-4 border border-red-800 text-white shadow-lg text-xs flex flex-col transition-all transform hover:scale-105 hover:shadow-2xl hover:shadow-red-500/50 hover:ring-red-500/60">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2 text-gray-300">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-3 w-3 text-red-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span>{timeRemaining}</span>
-        </div>
-        <div className="flex items-center gap-2 text-yellow-400">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-3 w-3"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V20h14v-3.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 2.03 1.97 3.45V20h6v-3.5c0-2.33-4.67-3.5-7-3.5z" />
-          </svg>
-          <span>{totalPlayers} PLAYERS</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 items-center text-xs sm:text-sm font-medium py-0.5 sm:py-3">
-        <div className="flex flex-col items-center sm:items-start gap-1 min-w-0">
-          <img src={logoA} alt={`${teamAName} Logo`} className="h-8 w-8 sm:h-9 sm:w-9" />
-          <span className="font-orbitron text-center sm:text-left leading-tight break-words max-w-[7rem] sm:max-w-[10rem] line-clamp-3">
-            {teamAName}
-          </span>
+    <div className="group w-full max-w-[22rem] xs:max-w-[24rem] sm:max-w-lg md:max-w-xl min-h-[200px] sm:min-h-[240px] max-h-[240px] rounded-xl bg-black p-4 xs:p-4 sm:p-4 border border-neutral-800 text-white shadow-lg text-xs flex flex-col transition-all transform overflow-hidden">
+      <div className="flex flex-col h-full transition-transform duration-300 ease-in-out group-hover:scale-105">
+        {/* Top Row */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-1 xs:gap-2 text-red-500">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-3 w-3 xs:h-4 xs:w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-[10px] xs:text-xs">{timeRemaining}</span>
+          </div>
+          <div className="flex items-center gap-1 xs:gap-2 text-gray-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-3 w-3 xs:h-4 xs:w-4"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V20h14v-3.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 2.03 1.97 3.45V20h6v-3.5c0-2.33-4.67-3.5-7-3.5z" />
+            </svg>
+            <span className="text-[10px] xs:text-xs">{totalPlayers} PLAYERS</span>
+          </div>
         </div>
 
-        <div className="text-center px-1">
-          <span className="text-red-500 font-orbitron text-[10px] sm:text-xs tracking-wider">VS</span>
+        <div className="flex-grow grid grid-cols-3 items-start text-xs font-medium py-0.5 xs:py-1 sm:py-3">
+          {/* Team A */}
+          <div className="flex flex-col items-center sm:items-start gap-1 min-w-0">
+            <img src={logoA} alt={`${teamAName} Logo`} className="h-7 w-7 xs:h-8 xs:w-8 sm:h-9 sm:w-9" />
+            <span className="text-center sm:text-left leading-tight break-words max-w-[6rem] xs:max-w-[7rem] sm:max-w-[12rem] line-clamp-3 h-[3.25rem]">
+              {teamAName}
+            </span>
+          </div>
+
+          {/* VS centered */}
+          <div className="text-center px-1 self-start pt-1">
+            <span className="text-red-500 text-[8px] xs:text-[10px] sm:text-xs tracking-wider">VS</span>
+          </div>
+
+          {/* Team B */}
+          <div className="flex flex-col items-center sm:items-end gap-1 min-w-0">
+            <img src={logoB} alt={`${teamBName} Logo`} className="h-7 w-7 xs:h-8 xs:w-8 sm:h-9 sm:w-9 rounded-full" />
+            <span className="text-center sm:text-right leading-tight break-words max-w-[6rem] xs:max-w-[7rem] sm:max-w-[12rem] line-clamp-3 h-[3.25rem]">
+              {teamBName}
+            </span>
+          </div>
         </div>
 
-        <div className="flex flex-col items-center sm:items-end gap-1 min-w-0">
-          <img src={logoB} alt={`${teamBName} Logo`} className="h-8 w-8 sm:h-9 sm:w-9 rounded-full" />
-          <span className="font-orbitron text-center sm:text-right leading-tight break-words max-w-[7rem] sm:max-w-[10rem] line-clamp-3">
-            {teamBName}
-          </span>
+        {/* Push Tokens Left and Button to the bottom */}
+        <div className="mt-auto space-y-3 xs:space-y-4">
+          {/* Tokens Left */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[10px] xs:text-xs w-full">
+              <span className="text-gray-300 w-1/3">Owned NFTs</span>
+              <span className="text-gray-300 bg-black px-2 xs:px-3 py-0.5 rounded border border-gray-600 text-center text-[10px] xs:text-xs min-w-[4rem] xs:min-w-[4.5rem]">
+                {totalOwnedNfts}/{totalPlayers}
+              </span>
+            </div>
+            <div className="relative w-full h-2 rounded-full bg-neutral-800">
+              <div
+                className="absolute top-0 left-0 h-2 rounded-full bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400"
+                style={{ width: `${totalPlayers ? (totalOwnedNfts / totalPlayers) * 100 : 0}%` }}
+              ></div>
+            </div>
+          </div>
+          {/* Button */}
+          {match.isCompleted ? (
+            <button className="w-full h-8 xs:h-9 bg-green-600 hover:bg-green-700 rounded-md text-white font-bold tracking-wide text-[10px] xs:text-xs shadow-md">
+              <Link to={contest ? `/players/${contest.contestId}` : "/players"}>SELL NFT</Link>
+            </button>
+          ) : match.isUpcoming ? (
+            <Link to={contest ? `/players/${contest.contestId}` : "/players"}>
+              <button className="w-full h-8 xs:h-9 bg-[#8b0000] hover:bg-red-600 rounded-md text-white font-bold tracking-wide text-[10px] xs:text-xs shadow-md">
+                BET NOW
+              </button>
+            </Link>
+          ) : null}
         </div>
-      </div>
-
-      <div className="mt-auto space-y-4">
-        <div className="flex items-center justify-between text-xs w-full">
-          <span className="text-red-500 w-1/3">Owned NFTs</span>
-          <span className="text-gray-300 bg-black px-3 py-0.5 rounded border border-gray-600 w-1/4 text-center">
-            {totalOwnedNfts}
-          </span>
-        </div>
-
-        <div className="relative w-full h-2 rounded-full bg-neutral-800">
-          <div
-            className="absolute top-0 left-0 h-2 rounded-full bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400"
-            style={{ width: `${totalPlayers ? (totalOwnedNfts / totalPlayers) * 100 : 0}%` }}
-          ></div>
-        </div>
-
-        {match.isCompleted ? (
-          <button className="w-full h-9 bg-green-600 hover:bg-green-700 rounded-md text-white font-bold tracking-wide text-xs shadow-md">
-            <Link to={contest ? `/players/${contest.contestId}` : "/players"}>SELL NFTs</Link>
-          </button>
-        ) : (
-          <button className="w-full h-9 bg-gradient-to-r from-[#8b0000] via-red-700 to-[#8b0000] hover:from-red-600 hover:to-red-500 rounded-md text-white font-bold tracking-wide text-xs shadow-md">
-            <Link to={contest ? `/players/${contest.contestId}` : "/players"}>BET NOW</Link>
-          </button>
-        )}
       </div>
     </div>
   );
@@ -409,26 +446,61 @@ export default function ContestPage() {
   const filteredData = getFilteredData();
   console.log(`Filtered data for ${activeTab}:`, filteredData);
 
+  const TabContent = ({ data, emptyMessage, seriesName }: { data: Match[]; emptyMessage: string; seriesName: string }) => (
+    <div className="space-y-6 xs:space-y-8 pt-6 xs:pt-8">
+      <div className="relative backdrop-blur-[8px] p-3 xs:p-4 sm:p-5 md:p-6">
+        <div className="absolute -top-3 xs:-top-4 left-0 flex items-center w-full pr-4 sm:pr-6">
+          <div className="bg-red-800/50 border-neutral-800 text-white px-3 xs:px-4 py-1.5 xs:py-2 text-lg xs:text-xl rounded-r-md shadow-md z-10">
+            {seriesName}
+          </div>
+          <div className="h-px flex-1 ml-2 rounded-lg bg-neutral-800" />
+        </div>
+        <div className="mt-4 xs:mt-6 overflow-x-auto">
+          <div className="flex space-x-3 xs:space-x-4 px-1 min-w-full overflow-visible">
+            {data.length === 0 ? (
+              <p className="text-center text-[10px] xs:text-xs sm:text-sm text-gray-400">{emptyMessage}</p>
+            ) : (
+              data.map((match, index) => (
+                <div
+                  key={match.matchId}
+                  className={`flex-none w-[95%] xs:w-[80%] sm:w-[60%] md:w-[45%] lg:w-[30%] ${index % 3 === 2 ? "mr-3 xs:mr-4" : ""}`}
+                >
+                  <TournamentCard
+                    match={match}
+                    contest={match.contest}
+                    ownedNfts={match.matchId in ownedNfts ? ownedNfts[match.matchId] : {}}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex justify-center items-start bg-black text-white py-8 min-h-screen overflow-hidden">
+    <div className="flex justify-center items-center bg-black text-white py-6 xs:py-8 min-h-screen overflow-hidden">
       <Navbar />
+      {/* Background */}
       <div className="absolute inset-0 z-0">
         <BackgroundCells />
       </div>
 
-      <div className="relative flex flex-col h-[700px] max-w-full justify-start items-start mt-[64px] backdrop-blur-[4px] w-[1400px] p-4 rounded-lg shadow-lg border border-red-900 text-white bg-white/2 z-10 overflow-hidden">
+      {/* Content */}
+      <div className="relative flex flex-col h-auto min-h-[400px] xs:min-h-[450px] sm:min-h-[500px] md:min-h-[550px] lg:min-h-[600px] xl:min-h-[650px] 2xl:min-h-[800px] max-w-[90%] xs:max-w-[85%] sm:max-w-[85%] md:max-w-5xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[1920px] justify-start items-start mt-[32px] xs:mt-[40px] sm:mt-[48px] lg:mt-[56px] backdrop-blur-[4px] w-full p-3 xs:p-3 sm:p-4 md:p-4 lg:p-5 xl:p-6 rounded-lg shadow-lg border border-neutral-800 text-white bg-white/2 z-10 overflow-hidden">
         {error ? (
-          <div className="text-center py-10 text-red-500">{error}</div>
+          <div className="text-center py-8 xs:py-10 text-red-500 text-sm xs:text-base">{error}</div>
         ) : (
-          <div className="relative z-50 w-full px-4">
+          <div className="relative z-50 w-full px-2 xs:px-4 sm:px-5">
             <div className="flex justify-center mb-6">
               <select
                 value={selectedSeries}
                 onChange={(e) => setSelectedSeries(e.target.value)}
-                className="bg-gray-700 text-white px-4 py-2 rounded-md mr-4"
+                className="bg-red-800/50 text-white p-2 px-4 py-2 rounded-md mr-4"
               >
                 {SUPPORTED_SERIES.map((series) => (
-                  <option key={series.id} value={series.id}>
+                  <option className="bg-black text-white" key={series.id} value={series.id}>
                     {series.name}
                   </option>
                 ))}
@@ -439,107 +511,50 @@ export default function ContestPage() {
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as "live" | "completed" | "upcoming")}
             >
-              <TabsList className="h-auto rounded-none border-border bg-transparent p-0">
+              <TabsList className="h-auto rounded-none border-border bg-transparent p-0 flex flex-wrap justify-center sm:justify-start gap-2 xs:gap-4">
                 <TabsTrigger
                   value="completed"
-                  className="relative text-xl rounded-none py-2 text-white after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-all after:duration-300 data-[state=active]:text-red-500 data-[state=active]:after:bg-red-500"
+                  className="relative text-sm xs:text-base sm:text-lg md:text-xl rounded-none py-1.5 xs:py-2 text-white after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-all after:duration-300 data-[state=active]:text-red-600 data-[state=active]:after:bg-red-600"
                 >
                   COMPLETED
                 </TabsTrigger>
                 <TabsTrigger
                   value="live"
-                  className="relative text-xl rounded-none py-2 pl-6 text-white after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-all after:duration-300 data-[state=active]:text-red-500 data-[state=active]:after:bg-red-500"
+                  className="relative text-sm xs:text-base sm:text-lg md:text-xl rounded-none py-1.5 xs:py-2 pl-4 xs:pl-6 text-white after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-all after:duration-300 data-[state=active]:text-red-600 data-[state=active]:after:bg-red-600"
                 >
                   <span className="blink-dot"></span>
                   LIVE
                 </TabsTrigger>
                 <TabsTrigger
                   value="upcoming"
-                  className="relative text-xl rounded-none py-2 text-white after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-all after:duration-300 data-[state=active]:text-red-500 data-[state=active]:after:bg-red-500"
+                  className="relative text-sm xs:text-base sm:text-lg md:text-xl rounded-none py-1.5 xs:py-2 text-white after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-all after:duration-300 data-[state=active]:text-red-600 data-[state=active]:after:bg-red-600"
                 >
                   UPCOMING
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="live" className="flex-1 w-full overflow-y-auto max-h-[calc(100vh-180px)]">
-                <div className="space-y-8 pt-8">
-                  <div className="relative backdrop-blur-[8px] p-6">
-                    <div className="absolute -top-4 left-0 flex items-center w-full pr-6">
-                      <div className="bg-red-900 text-white px-4 py-2 text-xl font-semibold rounded-r-md shadow-md z-10">
-                        {SUPPORTED_SERIES.find((series) => series.id === selectedSeries)?.name || "Tournament"}
-                      </div>
-                      <div className="h-px bg-red-900 flex-1 ml-2" />
-                    </div>
-                    <div className="flex flex-row gap-4 mt-6 flex-wrap">
-                      {filteredData.length === 0 ? (
-                        <p className="text-center text-xs text-gray-400 w-full">No live matches found.</p>
-                      ) : (
-                        filteredData.map((match) => (
-                          <TournamentCard
-                            key={match.matchId}
-                            match={match}
-                            contest={match.contest}
-                            ownedNfts={ownedNfts[match.matchId] || {}}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <TabContent
+                  data={filteredData}
+                  emptyMessage="No live matches found."
+                  seriesName={selectedSeries === 'd5a498c8-7596-4b93-8ab0-e0efc3345312' ? "IPL '25" : SUPPORTED_SERIES.find((series) => series.id === selectedSeries)?.name || "Tournament"}
+                />
               </TabsContent>
 
               <TabsContent value="completed" className="flex-1 w-full overflow-y-auto max-h-[calc(100vh-180px)]">
-                <div className="space-y-8 pt-8">
-                  <div className="relative backdrop-blur-[8px] p-6">
-                    <div className="absolute -top-4 left-0 flex items-center w-full pr-6">
-                      <div className="bg-red-900 text-white px-4 py-2 text-xl font-semibold rounded-r-md shadow-md z-10">
-                        {SUPPORTED_SERIES.find((series) => series.id === selectedSeries)?.name || "Tournament"}
-                      </div>
-                      <div className="h-px bg-red-900 flex-1 ml-2" />
-                    </div>
-                    <div className="flex flex-row gap-4 mt-6 flex-wrap">
-                      {filteredData.length === 0 ? (
-                        <p className="text-center text-xs text-gray-400 w-full">No completed matches found.</p>
-                      ) : (
-                        filteredData.map((match) => (
-                          <TournamentCard
-                            key={match.matchId}
-                            match={match}
-                            contest={match.contest}
-                            ownedNfts={ownedNfts[match.matchId] || {}}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <TabContent
+                  data={filteredData}
+                  emptyMessage="Fetching completed matches..."
+                  seriesName={selectedSeries === 'd5a498c8-7596-4b93-8ab0-e0efc3345312' ? "IPL '25" : SUPPORTED_SERIES.find((series) => series.id === selectedSeries)?.name || "Tournament"}
+                />
               </TabsContent>
 
               <TabsContent value="upcoming" className="flex-1 w-full overflow-y-auto max-h-[calc(100vh-180px)]">
-                <div className="space-y-8 pt-8">
-                  <div className="relative backdrop-blur-[8px] p-6">
-                    <div className="absolute -top-4 left-0 flex items-center w-full pr-6">
-                      <div className="bg-red-900 text-white px-4 py-2 text-xl font-semibold rounded-r-md shadow-md z-10">
-                        {SUPPORTED_SERIES.find((series) => series.id === selectedSeries)?.name || "Tournament"}
-                      </div>
-                      <div className="h-px bg-red-900 flex-1 ml-2" />
-                    </div>
-                    <div className="flex flex-row gap-4 mt-6 flex-wrap">
-                      {filteredData.length === 0 ? (
-                        <p className="text-center text-xs text-gray-400 w-full">No upcoming matches found.</p>
-                      ) : (
-                        filteredData.map((match) => (
-                          <TournamentCard
-                            key={match.matchId}
-                            match={match}
-                            contest={match.contest}
-                            ownedNfts={ownedNfts[match.matchId] || {}}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <TabContent
+                  data={filteredData}
+                  emptyMessage="Fetching upcoming matches..."
+                  seriesName={selectedSeries === 'd5a498c8-7596-4b93-8ab0-e0efc3345312' ? "IPL '25" : SUPPORTED_SERIES.find((series) => series.id === selectedSeries)?.name || "Tournament"}
+                />
               </TabsContent>
             </Tabs>
           </div>
