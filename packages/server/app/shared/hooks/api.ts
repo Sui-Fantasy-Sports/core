@@ -7,7 +7,7 @@ const api = {
     useQuery({
       queryKey: ["contests"],
       queryFn: async () => {
-        const res = await fetch("http://localhost:5173/api/contests");
+        const res = await fetch("/api/contests");
         if (!res.ok) throw new Error("Failed to fetch contests");
         const data = await res.json();
         return data;
@@ -19,7 +19,7 @@ const api = {
     useQuery({
       queryKey: ["matches"],
       queryFn: async () => {
-        const res = await fetch("http://localhost:5173/api/matches");
+        const res = await fetch("/api/matches");
         if (!res.ok) throw new Error("Failed to fetch matches");
         const data = await res.json();
         return Array.isArray(data) ? data : [];
@@ -31,7 +31,7 @@ const api = {
     useQuery({
       queryKey: ["matchData"],
       queryFn: async () => {
-        const res = await fetch("http://localhost:5173/api/match-data");
+        const res = await fetch("/api/match-data");
         if (!res.ok) throw new Error("Failed to fetch match data");
         const data = await res.json();
         return data;

@@ -9,7 +9,7 @@ export default defineConfig({
     server: { port: port },
     build: {
         rollupOptions: {
-            input: ["./app/main.tsx"],
+            input: ["./index.html","./app/main.tsx"],
             output: {
                 entryFileNames: "static/client.js",
                 chunkFileNames: "static/assets/[name]-[hash].js",
@@ -17,7 +17,7 @@ export default defineConfig({
             },
         },
         emptyOutDir: false,
-        copyPublicDir: false,
+        copyPublicDir: true,
     },
     publicDir: "public",
     plugins: [

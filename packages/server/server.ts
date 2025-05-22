@@ -7,10 +7,18 @@ import { ensureEnv } from "./env";
 import cronJobs from "./api/middlewares/cron";
 import { suiClient } from "./api/sui/client";
 import { Player, IPlayer } from "./api/data/player"; // Import Player model
+import path from "path";
+import { fileURLToPath } from "url";
+import staticRequestsHandler from "./api/middlewares/staticRequestsHandler";
 
-ensureEnv();
+const isProd =
+  process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const htmlFile = Bun.file("./template.html");
+const htmlFile = Bun.file(
+  path.join(__dirname, isProd ? "dist" : "", "index.html")
+);
 const html = await htmlFile.text();
 
 const app = new Hono();
@@ -101,6 +109,26 @@ app.post("/api/players/tiers", async (c) => {
     return c.json({ error: "Failed to fetch player tiers" }, 500);
   }
 });
+
+if (isProd) {
+  log("Production mode detected, serving static files.");
+
+  app.use("/*", staticRequestsHandler(path.join(__dirname, "dist")));
+
+  let envEnsured = false;
+  app.use((ctx, next) => {
+    if (!envEnsured) {
+      ensureEnv();
+      envEnsured = true;
+      log("Environment variables ensured.");
+    }
+    return next();
+  });
+} else {
+  log("Development mode detected.");
+  ensureEnv();
+}
+
 
 app.get("*", (c) => c.html(html));
 

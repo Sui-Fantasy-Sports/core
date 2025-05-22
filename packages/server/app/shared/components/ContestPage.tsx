@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -66,7 +64,7 @@ const packageId = "0x85cd910e9f4dd3720bdbf654d371ad5e2a8b5fbe52064f1c21f4a03682a
 // Function to fetch player tiers from the backend
 async function fetchPlayerTiers(playerIds: string[]): Promise<Record<string, { tier: number; name: string }>> {
   try {
-    const response = await fetch("http://localhost:5173/api/players/tiers", {
+    const response = await fetch("/api/players/tiers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playerIds }),
@@ -87,7 +85,7 @@ const TournamentCard = ({ match, contest, ownedNfts }: TournamentCardProps) => {
     if (match.status === "live") {
       const fetchScore = async () => {
         try {
-          const res = await fetch(`http://localhost:5173/api/match-info?matchId=${match.matchId}`);
+          const res = await fetch(`/api/match-info?matchId=${match.matchId}`);
           const data = await res.json();
           if (data.status === "success" && data.data?.score?.length > 0) {
             const score = data.data.score[0];
@@ -254,7 +252,7 @@ export default function ContestPage() {
   const { data: matches = [], error: matchesError } = useQuery({
     queryKey: ["matches", selectedSeries],
     queryFn: async () => {
-      const res = await fetch(`http://localhost:5173/api/matches?seriesId=${selectedSeries}`);
+      const res = await fetch(`/api/matches?seriesId=${selectedSeries}`);
       if (!res.ok) throw new Error("Failed to fetch matches");
       const data = await res.json();
       console.log(
@@ -273,7 +271,7 @@ export default function ContestPage() {
   const { data: contests = [], error: contestsError } = useQuery({
     queryKey: ["contests", selectedSeries],
     queryFn: async () => {
-      const res = await fetch(`http://localhost:5173/api/contests?seriesId=${selectedSeries}`);
+      const res = await fetch(`/api/contests?seriesId=${selectedSeries}`);
       if (!res.ok) throw new Error("Failed to fetch contests");
       const data = await res.json();
       console.log(

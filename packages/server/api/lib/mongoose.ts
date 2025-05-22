@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
+import env from '../../env';
 
 export async function connectDB(): Promise<void> {
   try {
-    const uri = 'mongodb+srv://fantasysports:fantasy123@fantasy-sports.47cp4vx.mongodb.net/cricket_db?retryWrites=true&w=majority';
+    const uri = env.MONGODB_URI;
     await mongoose.connect(uri, {
       dbName: 'cricket_db',
     });

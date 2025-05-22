@@ -377,7 +377,7 @@
 // // Function to fetch player tiers from the backend
 // async function fetchPlayerTiers(playerIds: string[]): Promise<Record<string, { tier: number; name: string }>> {
 //   try {
-//     const response = await fetch("http://localhost:5173/api/players/tiers", {
+//     const response = await fetch("/api/players/tiers", {
 //       method: "POST",
 //       headers: { "Content-Type": "application/json" },
 //       body: JSON.stringify({ playerIds }),
@@ -411,7 +411,7 @@
 //       try {
 //         console.log("Current contestId from URL:", contestId);
 //         const [contestsResponse, matchResponse] = await Promise.all([
-//           fetch(`http://localhost:5173/api/contests`),
+//           fetch(`/api/contests`),
 //           fetch(`/api/match-data?contestId=${contestId}`),
 //         ]);
 //         console.log("Contests response status:", contestsResponse.status);
@@ -956,7 +956,7 @@ const SUPPORTED_SERIES = [
 
 async function fetchPlayerTiers(playerIds: string[]): Promise<Record<string, { tier: number; name: string }>> {
   try {
-    const response = await fetch("http://localhost:5173/api/players/tiers", {
+    const response = await fetch("/api/players/tiers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playerIds }),
@@ -994,7 +994,7 @@ export default function MatchPage() {
       try {
         const [matchResponse, contestResponse] = await Promise.all([
           fetch(`/api/match-data?contestId=${contestId}`),
-          fetch("http://localhost:5173/api/contests"),
+          fetch("/api/contests"),
         ]);
 
         if (!matchResponse.ok) throw new Error("Failed to fetch match data");
