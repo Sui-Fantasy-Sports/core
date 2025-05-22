@@ -34,7 +34,7 @@ const cronJobs = createMiddleware(async (ctx, next) => {
   for (const [name, job] of Object.entries(jobs)) {
     if (!cronRecord[name] || now - cronRecord[name] >= job.interval) {
       cronRecord[name] = now;
-      await job.fn().then(() => {
+       job.fn().then(() => {
         console.log(`Cron job ${name} executed successfully at ${new Date().toISOString()}`);
       }).catch(error => {
         console.error(`Error in cron job ${name} at ${new Date().toISOString()}:`, error);
